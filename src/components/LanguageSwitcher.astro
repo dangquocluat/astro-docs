@@ -1,0 +1,48 @@
+---
+import { languages, type Lang } from "../i18n/ui";
+import { getPathWithoutLang, getLocalizedPath } from "../i18n/utils";
+
+interface Props {
+	lang: Lang;
+}
+
+const { lang } = Astro.props;
+const currentPath = getPathWithoutLang(Astro.url.pathname);
+---
+
+<div class="language-switcher" aria-label="Language switcher">
+	{Object.entries(languages).map(([code, label]) => {
+		const nextLang = code as Lang;
+		return (
+			<a href={getLocalizedPath(nextLang, currentPath)} aria-current={nextLang === lang ? "true" : undefined}>
+				{label}
+			</a>
+		);
+	})}
+</div>
+
+<style>
+	.language-switcher {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.25rem;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface);
+	}
+
+	.language-switcher a {
+		padding: 0.35rem 0.7rem;
+		border-radius: 999px;
+		color: var(--muted-foreground);
+		font-size: 0.875rem;
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.language-switcher a[aria-current="true"] {
+		background: var(--foreground);
+		color: var(--background);
+	}
+</style>

@@ -1,0 +1,29 @@
+---
+import BaseHead from "../components/BaseHead.astro";
+import Header from "../components/Header.astro";
+import { useTranslations, type Lang } from "../i18n/utils";
+
+interface Props {
+	lang: Lang;
+	title?: string;
+	description?: string;
+}
+
+const { lang, title, description } = Astro.props;
+const t = useTranslations(lang);
+const pageTitle = title ? `${title} - ${t.meta.title}` : t.meta.title;
+const pageDescription = description ?? t.meta.description;
+---
+
+<!doctype html>
+<html lang={lang}>
+	<head>
+		<BaseHead title={pageTitle} description={pageDescription} />
+	</head>
+	<body>
+		<Header lang={lang} />
+		<main>
+			<slot />
+		</main>
+	</body>
+</html>

@@ -1,12 +1,13 @@
 ---
-import type { HTMLAttributes } from 'astro/types';
+import type { HTMLAttributes } from "astro/types";
 
 type Props = HTMLAttributes<'a'>;
 
 const { href, class: className, ...props } = Astro.props;
-const pathname = Astro.url.pathname.replace(import.meta.env.BASE_URL, '');
+const pathname = Astro.url.pathname.replace(import.meta.env.BASE_URL, "");
 const subpath = pathname.match(/[^\/]+/g);
-const isActive = href === pathname || href === '/' + (subpath?.[0] || '');
+const hrefParts = typeof href === "string" ? href.match(/[^\/]+/g) : null;
+const isActive = href === pathname || (hrefParts?.[1] && hrefParts[0] === subpath?.[0] && hrefParts[1] === subpath?.[1]);
 ---
 
 <a href={href} class:list={[className, { active: isActive }]} {...props}>
@@ -15,10 +16,21 @@ const isActive = href === pathname || href === '/' + (subpath?.[0] || '');
 <style>
 	a {
 		display: inline-block;
+		padding: 0.45rem 0.7rem;
+		border-radius: 999px;
+		color: var(--muted-foreground);
+		font-size: 0.925rem;
+		font-weight: 600;
 		text-decoration: none;
 	}
+
+	a:hover {
+		background: var(--muted);
+		color: var(--foreground);
+	}
+
 	a.active {
-		font-weight: bolder;
-		text-decoration: underline;
+		background: var(--muted);
+		color: var(--foreground);
 	}
 </style>

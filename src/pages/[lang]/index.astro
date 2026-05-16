@@ -1,0 +1,152 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import { getGeneratedDocsCommands } from "../../generated/command-docs/index.js";
+import { languages, type Lang } from "../../i18n/ui";
+import { isLang, useTranslations } from "../../i18n/utils";
+
+export function getStaticPaths() {
+	return Object.keys(languages).map((lang) => ({ params: { lang } }));
+}
+
+const langParam = Astro.params.lang;
+if (!isLang(langParam)) {
+	return Astro.redirect("/vi/");
+}
+
+const lang: Lang = langParam;
+const t = useTranslations(lang);
+
+const commands = getGeneratedDocsCommands(lang).filter((command) => !command.hidden);
+const categories = Array.from(
+	commands.reduce((map, command) => {
+		const key = command.categoryLabel || command.category || "other";
+		map.set(key, (map.get(key) ?? 0) + 1);
+		return map;
+	}, new Map<string, number>()),
+).sort(([a], [b]) => a.localeCompare(b));
+
+const getCategoryId = (category: string) => `category-${category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+const getCommandSearchText = (command: (typeof commands)[number], category: string) => [
+	command.name,
+	command.description,
+	category,
+	...command.options.flatMap((option) => [option.name, option.typeLabel, option.description]),
+	...command.usageExamples,
+].join(" ").toLowerCase();
+---
+
+<MainLayout lang={lang}>
+	<section class="docs-hero">
+		<div>
+			<p class="eyebrow">{t.home.badge}</p>
+			<h1>{t.home.title}</h1>
+		</div>
+		<div class="docs-search" role="search">
+			<label for="command-search">{t.home.searchLabel}</label>
+			<input id="command-search" type="search" placeholder={t.home.searchPlaceholder} autocomplete="off" />
+		</div>
+	</section>
+
+	<div class="docs-shell">
+		<aside class="docs-sidebar" aria-label={t.home.categoriesTitle}>
+			<h2>{t.home.categoriesTitle}</h2>
+			<a href="#commands" data-sidebar-all>{t.home.allCategories}<span data-sidebar-total>{commands.length}</span></a>
+			{categories.map(([category, count]) => (
+				<a href={`#${getCategoryId(category)}`} data-sidebar-category={getCategoryId(category)}>
+					{category}<span>{count}</span>
+				</a>
+			))}
+		</aside>
+
+		<section class="docs-content" id="commands">
+			<div class="section-heading">
+				<h2>{t.home.commandsTitle}</h2>
+				<p><span data-command-count>{commands.length}</span> {t.home.commandsCount}</p>
+			</div>
+			<p class="muted search-empty" data-search-empty hidden>{t.home.noSearchResults}</p>
+
+			{categories.map(([category]) => {
+				const categoryCommands = commands.filter((command) => (command.categoryLabel || command.category || "other") === category);
+				const categoryId = getCategoryId(category);
+
+				return (
+					<section class="command-category" id={categoryId} data-command-category={categoryId}>
+						<h3>{category}</h3>
+						<div class="command-list">
+							{categoryCommands.map((command) => (
+								<article class="command-card" data-command-card data-search-text={getCommandSearchText(command, category)}>
+									<div class="command-card-header">
+										<div>
+											<h4><code>/{command.name}</code></h4>
+											<p>{command.description}</p>
+										</div>
+										{command.cooldown ? <span class="pill">{t.home.cooldownLabel}: {command.cooldown}s</span> : null}
+									</div>
+
+									<div class="command-meta">
+										<div>
+											<strong>{t.home.optionsLabel}</strong>
+											{command.options.length > 0 ? (
+												<ul>
+													{command.options.map((option) => (
+														<li>
+															<code>{option.name}</code>
+															<span>{option.typeLabel}</span>
+															<small>{option.required ? t.home.requiredLabel : t.home.optionalLabel}</small>
+															<p>{option.description}</p>
+														</li>
+													))}
+												</ul>
+											) : <p class="muted">{t.home.emptyOptions}</p>}
+										</div>
+
+										<div>
+											<strong>{t.home.examplesLabel}</strong>
+											{command.usageExamples.map((example) => <pre><code>{example}</code></pre>)}
+										</div>
+									</div>
+								</article>
+							))}
+						</div>
+					</section>
+				);
+			})}
+		</section>
+	</div>
+
+	<script>
+		const searchInput = document.querySelector<HTMLInputElement>("#command-search");
+		const commandCards = Array.from(document.querySelectorAll<HTMLElement>("[data-command-card]"));
+		const commandCategories = Array.from(document.querySelectorAll<HTMLElement>("[data-command-category]"));
+		const sidebarLinks = Array.from(document.querySelectorAll<HTMLElement>("[data-sidebar-category]"));
+		const commandCount = document.querySelector<HTMLElement>("[data-command-count]");
+		const sidebarTotal = document.querySelector<HTMLElement>("[data-sidebar-total]");
+		const emptyState = document.querySelector<HTMLElement>("[data-search-empty]");
+
+		searchInput?.addEventListener("input", () => {
+			const query = searchInput.value.trim().toLowerCase();
+			let visibleCount = 0;
+
+			for (const card of commandCards) {
+				const matches = !query || (card.dataset.searchText ?? "").includes(query);
+				card.hidden = !matches;
+				if (matches) visibleCount += 1;
+			}
+
+			for (const category of commandCategories) {
+				const hasVisibleCards = Boolean(category.querySelector("[data-command-card]:not([hidden])"));
+				category.hidden = !hasVisibleCards;
+			}
+
+			for (const link of sidebarLinks) {
+				const categoryId = link.dataset.sidebarCategory;
+				link.hidden = query ? !Boolean(categoryId && document.getElementById(categoryId)?.hidden === false) : false;
+			}
+
+			if (commandCount) commandCount.textContent = String(visibleCount);
+			if (sidebarTotal) sidebarTotal.textContent = String(visibleCount);
+			if (emptyState) emptyState.hidden = visibleCount > 0;
+		});
+	</script>
+</MainLayout>
